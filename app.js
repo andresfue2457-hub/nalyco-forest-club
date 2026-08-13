@@ -40,27 +40,51 @@ async function showAccount(){
     location.hash='cuenta';
   }catch(e){console.error(e);toast('No se pudo consultar la cuenta.')}
 }
+async function lookupByEmail(email){
+  try{
+    email=email.trim().toLowerCase();
+    if(!email){toast('Escribe tu correo electrónico.');return}
+    const {data:c,error}=await db.rpc('consultar_cliente_por_correo',{p_correo:email});
+    if(error) throw error;
+    const client=Array.isArray(c)?c[0]:c;
+    if(!client){toast('No encontramos un cliente registrado con ese correo.');return}
+    const {data:purchases,error:pe}=await db.rpc('consultar_compras_por_correo',{p_correo:email});
+    if(pe) throw pe;
+    $('#cuenta').classList.remove('hidden');
+    $('#accountName').textContent=client.nombre;
+    $('#accountCode').textContent=`Código: NALYCO-${String(client.id).padStart(3,'0')}`;
+    $('#accountPoints').textContent=client.puntos||0;
+    $('#accountLevel').textContent=client.nivel||level(client.puntos||0);
+    const next=benefits.find(b=>(client.puntos||0)<b.p)||benefits[benefits.length-1];
+    $('#nextBenefit').textContent=next.t;
+    const idx=benefits.indexOf(next), prev=benefits[idx-1]?.p||0;
+    $('#progressBar').style.width=Math.min(100,Math.max(0,((client.puntos||0)-prev)/(next.p-prev)*100))+'%';
+    $('#progressText').textContent=(client.puntos||0)>=1000?'¡Tienes el nivel máximo!':`Te faltan ${Math.max(0,next.p-(client.puntos||0))} puntos para ${next.t}.`;
+    $('#purchaseHistory').innerHTML=(purchases||[]).map(x=>`<div style="padding:12px 0;border-bottom:1px solid #eee"><b>${x.producto||'Compra'}</b> · ${x.fecha_compra||''} · $${Number(x.valor||0).toLocaleString('es-CO')} · ${x.cantidad||1} unidad(es)</div>`).join('')||'<p>No hay compras registradas.</p>';
+    location.hash='cuenta';
+  }catch(e){console.error(e);toast('No se pudo consultar la información.')}
+}
+
 $('#registerForm').addEventListener('submit',async e=>{
   e.preventDefault();
   try{
     const f=new FormData(e.target), email=f.get('email').trim().toLowerCase();
-    const password=prompt('Crea una contraseña para tu cuenta NALYCO (mínimo 6 caracteres):');
-    if(!password)return;
-    const {data,error}=await db.auth.signUp({email,password});
-    if(error)throw error;
-    const {error:ie}=await db.from('clientes').insert({nombre:f.get('name').trim(),telefono:f.get('phone').trim(),correo:email,ciudad:f.get('city').trim(),puntos:0,nivel:'Inicial'});
-    if(ie && !ie.message.includes('duplicate'))throw ie;
-    toast('Cuenta creada. Revisa tu correo si Supabase solicita confirmación.');
-    e.target.reset(); setTimeout(showAccount,800);
-  }catch(err){console.error(err);toast(err.message||'No se pudo crear la cuenta.')}
+    const {error}=await db.from('clientes').insert({
+      nombre:f.get('name').trim(),telefono:f.get('phone').trim(),correo:email,
+      ciudad:f.get('city').trim(),puntos:0,nivel:'Inicial'
+    });
+    if(error) throw error;
+    toast('Registro completado. Ya puedes consultar tus puntos usando tu correo.');
+    e.target.reset();
+    setTimeout(()=>lookupByEmail(email),500);
+  }catch(err){console.error(err);toast(err.message||'No se pudo completar el registro.')}
 });
+
 $('#loginBtn').addEventListener('click',async()=>{
-  const email=prompt('Correo registrado en NALYCO:'); if(!email)return;
-  const password=prompt('Contraseña de tu cuenta:'); if(!password)return;
-  const {error}=await db.auth.signInWithPassword({email:email.trim().toLowerCase(),password});
-  if(error){toast('No se pudo iniciar sesión: '+error.message);return}
-  if(email.trim().toLowerCase()===ADMIN_EMAIL){openAdmin();} else {await showAccount();}
+  const email=prompt('Escribe el correo registrado en NALYCO:');
+  if(email) await lookupByEmail(email);
 });
+
 $('#logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();$('#cuenta').classList.add('hidden');$('#adminModal').classList.add('hidden');location.hash='inicio'});
 
 async function openAdmin(){
@@ -124,4 +148,4 @@ $('#exportBtn').addEventListener('click',async()=>{
   }catch(e){console.error(e);toast('No se pudo exportar.')}
 });
 renderBenefits();
-(async()=>{const {data:{session}}=await db.auth.getSession();if(session){if(session.user.email.toLowerCase()===ADMIN_EMAIL)openAdmin();else showAccount()}})();
+(async()=>{const {data:{session}}=await db.auth.getSession();if(session && session.user.email.toLowerCase()===ADMIN_EMAIL)openAdmin();})();
