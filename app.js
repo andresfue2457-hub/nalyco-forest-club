@@ -1,3 +1,4 @@
+
 const { createClient } = supabase;
 const db = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
@@ -76,6 +77,16 @@ $('#adminBtn').addEventListener('click',async()=>{
   $('#adminModal').classList.remove('hidden');
   $('#adminLogin').classList.remove('hidden');
   $('#adminPanel').classList.add('hidden');
+  $('#adminEmail').focus();
+});
+$('#adminLoginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const email=$('#adminEmail').value.trim().toLowerCase();
+  const password=$('#adminPassword').value;
+  if(email!==ADMIN_EMAIL.toLowerCase()){toast('Ese correo no tiene permisos de administrador.');return}
+  const {error}=await db.auth.signInWithPassword({email,password});
+  if(error){toast('No se pudo iniciar sesión: '+error.message);return}
+  await openAdmin();
 });
 $('#closeAdmin').addEventListener('click',()=>$('#adminModal').classList.add('hidden'));
 
