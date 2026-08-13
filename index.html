@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NALYCO Forest Club</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar"><div class="brand"><div class="logo">N</div><div><strong>NALYCO</strong><span>Forest Club</span></div></div><nav><a href="#inicio">Inicio</a><a href="#beneficios">Beneficios</a><a href="#registro">Registrarme</a><button id="adminBtn" class="ghost">Administración</button></nav></header>
+<main>
+<section id="inicio" class="hero"><div><p class="eyebrow">PROGRAMA DE FIDELIZACIÓN</p><h1>Cada compra cuenta,<br><em>cada momento permanece.</em></h1><p>Acumula puntos con tus compras y disfruta beneficios exclusivos de NALYCO, relojes de madera personalizados.</p><div class="actions"><a class="btn" href="#registro">Crear mi cuenta</a><button class="btn secondary" id="loginBtn">Consultar mis puntos</button></div></div><div class="watch-card"><div class="watch-face"><span>NALYCO</span><b id="heroPoints">100</b><small>FOREST CLUB</small></div></div></section>
+<section id="beneficios" class="section"><div class="section-head"><p class="eyebrow">BENEFICIOS</p><h2>Convierte tus puntos en experiencias</h2></div><div class="benefit-grid" id="benefitGrid"></div></section>
+<section class="section dark"><div class="section-head"><p class="eyebrow">¿CÓMO FUNCIONA?</p><h2>Fácil, rápido y personalizado</h2></div><div class="steps"><div><b>01</b><h3>Regístrate</h3><p>Crea tu perfil con tus datos de contacto.</p></div><div><b>02</b><h3>Compra</h3><p>Obtén puntos por tus compras y acciones.</p></div><div><b>03</b><h3>Canjea</h3><p>Usa tus puntos para desbloquear beneficios.</p></div></div></section>
+<section id="registro" class="section form-section"><div class="form-wrap"><div><p class="eyebrow">ÚNETE</p><h2>Haz parte de NALYCO Forest Club</h2><p>Regístrate y comienza a acumular puntos.</p></div><form id="registerForm"><label>Nombre completo<input required name="name" placeholder="Tu nombre"></label><label>Teléfono<input required name="phone" placeholder="300 000 0000"></label><label>Correo electrónico<input required type="email" name="email" placeholder="correo@ejemplo.com"></label><label>Ciudad<input required name="city" placeholder="Bogotá"></label><label><input type="checkbox" required name="consent"> Acepto recibir comunicaciones de NALYCO.</label><button class="btn" type="submit">Crear cuenta</button></form></div></section>
+<section id="cuenta" class="section account hidden"><div class="account-card"><div class="account-top"><div><p class="eyebrow">MI CUENTA</p><h2 id="accountName">Cliente</h2><p id="accountCode"></p></div><button class="ghost" id="logoutBtn">Cerrar sesión</button></div><div class="points"><div><span>Puntos acumulados</span><strong id="accountPoints">0</strong></div><div><span>Nivel</span><strong id="accountLevel">Inicial</strong></div><div><span>Próximo beneficio</span><strong id="nextBenefit">—</strong></div></div><div class="progress"><div id="progressBar"></div></div><p id="progressText"></p><h3>Historial de compras</h3><div id="purchaseHistory"></div></div></section>
+</main>
+<footer><strong>NALYCO</strong> · Tiempo que nace de la naturaleza · Forest Club</footer>
+<div id="adminModal" class="modal hidden"><div class="modal-box"><button class="close" id="closeAdmin">×</button><div id="adminLogin"><p class="eyebrow">PANEL</p><h2>Administración</h2><p>El panel administrativo se gestionará con autenticación segura de Supabase antes de publicar.</p></div><div id="adminPanel" class="hidden"><div class="account-top"><div><p class="eyebrow">PANEL DE CONTROL</p><h2>Clientes NALYCO</h2></div><button class="ghost" id="exportBtn">Exportar CSV</button></div><div id="adminStats" class="stats"></div><div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Ciudad</th><th>Compras</th><th>Puntos</th><th>Nivel</th><th>Acciones</th></tr></thead><tbody id="clientsTable"></tbody></table></div></div></div></div>
+<div id="toast" class="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js"></script>
+</body></html>
