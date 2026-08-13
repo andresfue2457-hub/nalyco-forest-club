@@ -1,8 +1,9 @@
 
+
 const { createClient } = supabase;
 const db = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
-const ADMIN_EMAIL = 'Andresfue2457@gmail.com';
+const ADMIN_EMAIL = 'andresfue2457@gmail.com';
 const benefits = [
   {p:200,t:'5% de descuento'},
   {p:400,t:'10% de descuento'},
@@ -95,7 +96,7 @@ async function openAdmin(){
   $('#adminPanel').classList.remove('hidden');
   await renderAdmin();
 }
-$('#adminBtn').addEventListener('click',async()=>{
+$('#adminLoginForm').addEventListener('click',async()=>{
   const user=await getUser();
   if(user && user.email.toLowerCase()===ADMIN_EMAIL){openAdmin();return}
   $('#adminModal').classList.remove('hidden');
