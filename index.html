@@ -15,7 +15,16 @@
 <section id="cuenta" class="section account hidden"><div class="account-card"><div class="account-top"><div><p class="eyebrow">MI CUENTA</p><h2 id="accountName">Cliente</h2><p id="accountCode"></p></div><button class="ghost" id="logoutBtn">Cerrar sesión</button></div><div class="points"><div><span>Puntos acumulados</span><strong id="accountPoints">0</strong></div><div><span>Nivel</span><strong id="accountLevel">Inicial</strong></div><div><span>Próximo beneficio</span><strong id="nextBenefit">—</strong></div></div><div class="progress"><div id="progressBar"></div></div><p id="progressText"></p><h3>Historial de compras</h3><div id="purchaseHistory"></div></div></section>
 </main>
 <footer><strong>NALYCO</strong> · Tiempo que nace de la naturaleza · Forest Club</footer>
-<div id="adminModal" class="modal hidden"><div class="modal-box"><button class="close" id="closeAdmin">×</button><div id="adminLogin"><p class="eyebrow">PANEL</p><h2>Administración</h2><p>El panel administrativo se gestionará con autenticación segura de Supabase antes de publicar.</p></div><div id="adminPanel" class="hidden"><div class="account-top"><div><p class="eyebrow">PANEL DE CONTROL</p><h2>Clientes NALYCO</h2></div><button class="ghost" id="exportBtn">Exportar CSV</button></div><div id="adminStats" class="stats"></div><div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Ciudad</th><th>Compras</th><th>Puntos</th><th>Nivel</th><th>Acciones</th></tr></thead><tbody id="clientsTable"></tbody></table></div></div></div></div>
+<div id="adminModal" class="modal hidden"><div class="modal-box"><button class="close" id="closeAdmin">×</button><div id="adminLogin">
+<p class="eyebrow">PANEL SEGURO</p>
+<h2>Administración NALYCO</h2>
+<p>Ingresa con la cuenta autorizada para administrar clientes, puntos y compras.</p>
+<form id="adminLoginForm" class="form-wrap" style="display:grid;grid-template-columns:1fr;gap:14px;padding:0;background:transparent;box-shadow:none">
+<label>Correo electrónico<input id="adminEmail" type="email" value="Andresfue2457@gmail.com" required></label>
+<label>Contraseña<input id="adminPassword" type="password" placeholder="Tu contraseña" required></label>
+<button class="btn" type="submit">Iniciar sesión</button>
+</form>
+</div><div id="adminPanel" class="hidden"><div class="account-top"><div><p class="eyebrow">PANEL DE CONTROL</p><h2>Clientes NALYCO</h2></div><button class="ghost" id="exportBtn">Exportar CSV</button></div><div id="adminStats" class="stats"></div><div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Ciudad</th><th>Compras</th><th>Puntos</th><th>Nivel</th><th>Acciones</th></tr></thead><tbody id="clientsTable"></tbody></table></div></div></div></div>
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js"></script>
 </body></html>
