@@ -1,309 +1,951 @@
+/* =========================================================
+   NALYCO FOREST CLUB
+   CRM + FIDELIZACIÓN + SUPABASE
+   ========================================================= */
+
 const { createClient } = supabase;
-const db = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+const db = createClient(
+  window.SUPABASE_URL,
+  window.SUPABASE_ANON_KEY
+);
+
+
+/* =========================================================
+   CONFIGURACIÓN
+   ========================================================= */
 
 const ADMIN_EMAIL = 'andresfue2457@gmail.com';
 
+
 const benefits = [
-  {p:200,t:'5% de descuento'},
-  {p:400,t:'10% de descuento'},
-  {p:600,t:'Envío gratis'},
-  {p:800,t:'15% de descuento'},
-  {p:1000,t:'Beneficio especial'}
+  { p: 200, t: '5% de descuento' },
+  { p: 400, t: '10% de descuento' },
+  { p: 600, t: 'Envío gratis' },
+  { p: 800, t: '15% de descuento' },
+  { p: 1000, t: 'Beneficio especial' }
 ];
 
-const $ = s => document.querySelector(s);
 
-function toast(m){
-  const t=$('#toast');
-  t.textContent=m;
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),3000);
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+
+const $ = selector => document.querySelector(selector);
+
+
+function toast(message) {
+
+  const element = $('#toast');
+
+  if (!element) return;
+
+  element.textContent = message;
+
+  element.classList.add('show');
+
+  setTimeout(() => {
+    element.classList.remove('show');
+  }, 3000);
 }
 
-function level(p){
-  if(p>=1000)return'Platinum';
-  if(p>=800)return'Gold';
-  if(p>=600)return'Silver';
-  if(p>=400)return'Bronze';
-  return'Inicial';
+
+/* =========================================================
+   NIVEL DEL CLIENTE
+   ========================================================= */
+
+function level(points) {
+
+  points = Number(points || 0);
+
+  if (points >= 1000) return 'Platinum';
+
+  if (points >= 800) return 'Gold';
+
+  if (points >= 600) return 'Silver';
+
+  if (points >= 400) return 'Bronze';
+
+  return 'Inicial';
 }
 
-function renderBenefits(){
-  $('#benefitGrid').innerHTML=benefits.map(b=>`
+
+/* =========================================================
+   ESCAPAR HTML
+   ========================================================= */
+
+function escapeHTML(value) {
+
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+}
+
+
+/* =========================================================
+   BENEFICIOS
+   ========================================================= */
+
+function renderBenefits() {
+
+  const grid = $('#benefitGrid');
+
+  if (!grid) return;
+
+  grid.innerHTML = benefits.map(benefit => `
+
     <article class="benefit">
-      <div class="points">${b.p} pts</div>
-      <h3>${b.t}</h3>
-      <p>Beneficio de fidelización NALYCO.</p>
+
+      <div class="points">
+        ${benefit.p} pts
+      </div>
+
+      <h3>
+        ${escapeHTML(benefit.t)}
+      </h3>
+
+      <p>
+        Beneficio de fidelización NALYCO.
+      </p>
+
     </article>
+
   `).join('');
-}
 
-async function getUser(){
-  const {data:{user},error}=await db.auth.getUser();
-
-  if(error){
-    console.error(error);
-    return null;
-  }
-
-  return user;
 }
 
 
-/* =========================================
-   CONSULTA DE CLIENTES SOLO CON CORREO
-   ========================================= */
+/* =========================================================
+   USUARIO AUTENTICADO
+   ========================================================= */
 
-async function lookupByEmail(email){
+async function getUser() {
 
-  try{
+  try {
 
-    email=(email||'').trim().toLowerCase();
+    const {
+      data: { user },
+      error
+    } = await db.auth.getUser();
 
-    if(!email){
-      toast('Escribe tu correo electrónico.');
-      return;
-    }
+    if (error) {
 
-    const {data:c,error}=await db.rpc(
-      'consultar_cliente_por_correo',
-      {p_correo:email}
-    );
-
-    if(error){
       console.error(error);
-      toast('No se pudo consultar el cliente.');
-      return;
-    }
 
-    const client=Array.isArray(c)?c[0]:c;
-
-    if(!client){
-      toast('No encontramos un cliente registrado con ese correo.');
-      return;
-    }
-
-    const {data:purchases,error:pe}=await db.rpc(
-      'consultar_compras_por_correo',
-      {p_correo:email}
-    );
-
-    if(pe){
-      console.error(pe);
-      toast('No se pudieron consultar las compras.');
-      return;
-    }
-
-    $('#cuenta').classList.remove('hidden');
-
-    $('#accountName').textContent=client.nombre;
-
-    $('#accountCode').textContent=
-      `Código: NALYCO-${String(client.id).padStart(3,'0')}`;
-
-    $('#accountPoints').textContent=client.puntos||0;
-
-    $('#accountLevel').textContent=
-      client.nivel||level(client.puntos||0);
-
-    const next=
-      benefits.find(b=>(client.puntos||0)<b.p)||
-      benefits[benefits.length-1];
-
-    $('#nextBenefit').textContent=next.t;
-
-    const index=benefits.indexOf(next);
-
-    const previous=
-      benefits[index-1]?.p||0;
-
-    let progress=0;
-
-    if(next.p>previous){
-
-      progress=
-        ((client.puntos||0)-previous)/
-        (next.p-previous)*100;
+      return null;
 
     }
 
-    progress=Math.min(100,Math.max(0,progress));
+    return user;
 
-    $('#progressBar').style.width=progress+'%';
+  } catch (error) {
 
-    $('#progressText').textContent=
-      (client.puntos||0)>=1000
-      ?'¡Tienes el nivel máximo!'
-      :`Te faltan ${
-        Math.max(0,next.p-(client.puntos||0))
-      } puntos para ${next.t}.`;
+    console.error(error);
 
-    $('#purchaseHistory').innerHTML=
-      (purchases||[]).map(x=>`
-        <div style="padding:12px 0;border-bottom:1px solid #eee">
-          <b>${x.producto||'Compra'}</b>
-          · ${x.fecha_compra||''}
-          · $${Number(x.valor||0).toLocaleString('es-CO')}
-          · ${x.cantidad||1} unidad(es)
-        </div>
-      `).join('')
-      ||'<p>No hay compras registradas.</p>';
-
-    location.hash='cuenta';
-
-  }catch(e){
-
-    console.error(e);
-    toast('No se pudo consultar la información.');
+    return null;
 
   }
 
 }
 
 
-/* =========================================
-   REGISTRO DE CLIENTES
-   ========================================= */
+/* =========================================================
+   MOSTRAR CUENTA DEL CLIENTE
+   ========================================================= */
 
-$('#registerForm').addEventListener('submit',async e=>{
+async function showClientAccount(client, purchases = []) {
 
-  e.preventDefault();
+  if (!client) return;
 
-  try{
 
-    const f=new FormData(e.target);
+  const account = $('#cuenta');
 
-    const email=
-      f.get('email').trim().toLowerCase();
+  if (account) {
 
-    const {error}=await db
-      .from('clientes')
-      .insert({
+    account.classList.remove('hidden');
 
-        nombre:f.get('name').trim(),
+  }
 
-        telefono:f.get('phone').trim(),
 
-        correo:email,
+  const points = Number(client.puntos || 0);
 
-        ciudad:f.get('city').trim(),
 
-        puntos:0,
+  if ($('#accountName')) {
 
-        nivel:'Inicial'
+    $('#accountName').textContent =
+      client.nombre || 'Cliente';
 
-      });
+  }
 
-    if(error)throw error;
 
-    toast(
-      'Registro completado. Ya puedes consultar tus puntos usando tu correo.'
+  if ($('#accountCode')) {
+
+    $('#accountCode').textContent =
+      `Código: NALYCO-${String(client.id).padStart(3, '0')}`;
+
+  }
+
+
+  if ($('#accountPoints')) {
+
+    $('#accountPoints').textContent =
+      points;
+
+  }
+
+
+  if ($('#accountLevel')) {
+
+    $('#accountLevel').textContent =
+      client.nivel || level(points);
+
+  }
+
+
+  /* =====================================================
+     PRÓXIMO BENEFICIO
+     ===================================================== */
+
+  let next =
+    benefits.find(benefit => points < benefit.p);
+
+  if (!next) {
+
+    next =
+      benefits[benefits.length - 1];
+
+  }
+
+
+  if ($('#nextBenefit')) {
+
+    $('#nextBenefit').textContent =
+      next.t;
+
+  }
+
+
+  const benefitIndex =
+    benefits.indexOf(next);
+
+
+  const previous =
+    benefitIndex > 0
+      ? benefits[benefitIndex - 1].p
+      : 0;
+
+
+  let progress = 0;
+
+
+  if (next.p > previous) {
+
+    progress =
+      ((points - previous) /
+        (next.p - previous)) *
+      100;
+
+  }
+
+
+  progress =
+    Math.min(
+      100,
+      Math.max(0, progress)
     );
 
-    e.target.reset();
 
-    setTimeout(()=>{
-      lookupByEmail(email);
-    },500);
+  if ($('#progressBar')) {
 
-  }catch(err){
+    $('#progressBar').style.width =
+      `${progress}%`;
 
-    console.error(err);
+  }
+
+
+  if ($('#progressText')) {
+
+    $('#progressText').textContent =
+      points >= 1000
+        ? '¡Tienes el nivel máximo!'
+        : `Te faltan ${
+            Math.max(0, next.p - points)
+          } puntos para ${next.t}.`;
+
+  }
+
+
+  /* =====================================================
+     HISTORIAL DE COMPRAS
+     ===================================================== */
+
+  if ($('#purchaseHistory')) {
+
+    $('#purchaseHistory').innerHTML =
+
+      (purchases || [])
+        .map(purchase => `
+
+          <div
+            style="
+              padding:12px 0;
+              border-bottom:1px solid #eee;
+            "
+          >
+
+            <b>
+              ${escapeHTML(
+                purchase.producto || 'Compra'
+              )}
+            </b>
+
+            · ${escapeHTML(
+              purchase.fecha_compra || ''
+            )}
+
+            · $${Number(
+              purchase.valor || 0
+            ).toLocaleString('es-CO')}
+
+            · ${Number(
+              purchase.cantidad || 1
+            )} unidad(es)
+
+          </div>
+
+        `)
+        .join('')
+
+      ||
+
+      '<p>No hay compras registradas.</p>';
+
+  }
+
+
+  location.hash = 'cuenta';
+
+}
+
+
+/* =========================================================
+   CONSULTAR CLIENTE POR CORREO
+   ========================================================= */
+
+async function lookupByEmail(email) {
+
+  try {
+
+    email =
+      String(email || '')
+        .trim()
+        .toLowerCase();
+
+
+    if (!email) {
+
+      toast(
+        'Escribe tu correo electrónico.'
+      );
+
+      return;
+
+    }
+
+
+    /* =====================================================
+       CONSULTAR CLIENTE
+       ===================================================== */
+
+    const {
+      data: rpcClient,
+      error: clientError
+    } = await db.rpc(
+      'consultar_cliente_por_correo',
+      {
+        p_correo: email
+      }
+    );
+
+
+    if (clientError) {
+
+      console.error(clientError);
+
+      toast(
+        'No se pudo consultar el cliente.'
+      );
+
+      return;
+
+    }
+
+
+    const client =
+      Array.isArray(rpcClient)
+        ? rpcClient[0]
+        : rpcClient;
+
+
+    if (!client) {
+
+      toast(
+        'No encontramos un cliente registrado con ese correo.'
+      );
+
+      return;
+
+    }
+
+
+    /* =====================================================
+       CONSULTAR COMPRAS
+       ===================================================== */
+
+    const {
+      data: purchases,
+      error: purchaseError
+    } = await db.rpc(
+      'consultar_compras_por_correo',
+      {
+        p_correo: email
+      }
+    );
+
+
+    if (purchaseError) {
+
+      console.error(purchaseError);
+
+      toast(
+        'No se pudieron consultar las compras.'
+      );
+
+      return;
+
+    }
+
+
+    await showClientAccount(
+      client,
+      purchases || []
+    );
+
+
+  } catch (error) {
+
+    console.error(error);
 
     toast(
-      err.message||
-      'No se pudo completar el registro.'
+      'No se pudo consultar la información.'
     );
 
   }
 
-});
+}
 
 
-/* =========================================
-   BOTÓN CONSULTAR PUNTOS
-   ========================================= */
+/* =========================================================
+   REGISTRO DE CLIENTES
+   ========================================================= */
 
-$('#loginBtn').addEventListener('click',async()=>{
+const registerForm = $('#registerForm');
 
-  const email=prompt(
-    'Escribe el correo registrado en NALYCO:'
+
+if (registerForm) {
+
+  registerForm.addEventListener(
+    'submit',
+    async event => {
+
+      event.preventDefault();
+
+
+      try {
+
+        const form =
+          new FormData(event.target);
+
+
+        /* ===============================================
+           DATOS DEL FORMULARIO
+           =============================================== */
+
+        const identificacion =
+          String(
+            form.get('identificacion') || ''
+          ).trim();
+
+
+        const nombre =
+          String(
+            form.get('name') || ''
+          ).trim();
+
+
+        const telefono =
+          String(
+            form.get('phone') || ''
+          ).trim();
+
+
+        const email =
+          String(
+            form.get('email') || ''
+          )
+          .trim()
+          .toLowerCase();
+
+
+        const ciudad =
+          String(
+            form.get('city') || ''
+          ).trim();
+
+
+        const direccion =
+          String(
+            form.get('direccion') || ''
+          ).trim();
+
+
+        const fechaNacimiento =
+          form.get('fecha_nacimiento') ||
+          null;
+
+
+        const consentimiento =
+          form.get('consent') === 'on';
+
+
+        /* ===============================================
+           VALIDACIONES
+           =============================================== */
+
+        if (!identificacion) {
+
+          toast(
+            'Escribe tu número de identificación.'
+          );
+
+          return;
+
+        }
+
+
+        if (!nombre) {
+
+          toast(
+            'Escribe tu nombre completo.'
+          );
+
+          return;
+
+        }
+
+
+        if (!telefono) {
+
+          toast(
+            'Escribe tu teléfono.'
+          );
+
+          return;
+
+        }
+
+
+        if (!email) {
+
+          toast(
+            'Escribe tu correo electrónico.'
+          );
+
+          return;
+
+        }
+
+
+        if (!ciudad) {
+
+          toast(
+            'Escribe tu ciudad.'
+          );
+
+          return;
+
+        }
+
+
+        if (!consentimiento) {
+
+          toast(
+            'Debes aceptar recibir comunicaciones de NALYCO.'
+          );
+
+          return;
+
+        }
+
+
+        /* ===============================================
+           BUSCAR CLIENTE EXISTENTE
+           =============================================== */
+
+        const {
+          data: existingClients,
+          error: searchError
+        } = await db
+          .from('clientes')
+          .select('*')
+          .eq('correo', email)
+          .limit(1);
+
+
+        if (searchError) {
+
+          console.error(searchError);
+
+          throw searchError;
+
+        }
+
+
+        const existingClient =
+          existingClients &&
+          existingClients.length
+            ? existingClients[0]
+            : null;
+
+
+        /* ===============================================
+           DATOS CRM
+           =============================================== */
+
+        const clientData = {
+
+          identificacion,
+
+          nombre,
+
+          telefono,
+
+          correo: email,
+
+          ciudad,
+
+          direccion,
+
+          fecha_nacimiento:
+            fechaNacimiento,
+
+          consentimiento,
+
+          tipo_cliente:
+            existingClient?.tipo_cliente ||
+            'Nuevo',
+
+          valor_potencial_venta:
+            existingClient?.valor_potencial_venta ||
+            0,
+
+          satisfaccion:
+            existingClient?.satisfaccion ??
+            null,
+
+          calificacion_servicio:
+            existingClient?.calificacion_servicio ??
+            null,
+
+          puntos:
+            existingClient?.puntos ||
+            0,
+
+          nivel:
+            existingClient?.nivel ||
+            'Inicial'
+
+        };
+
+
+        let clientId;
+
+
+        /* ===============================================
+           ACTUALIZAR CLIENTE EXISTENTE
+           =============================================== */
+
+        if (existingClient) {
+
+
+          const {
+            data: updatedClient,
+            error: updateError
+          } = await db
+            .from('clientes')
+            .update(clientData)
+            .eq('id', existingClient.id)
+            .select()
+            .single();
+
+
+          if (updateError) {
+
+            console.error(updateError);
+
+            throw updateError;
+
+          }
+
+
+          clientId =
+            updatedClient.id;
+
+
+          toast(
+            'Tus datos fueron actualizados correctamente.'
+          );
+
+
+        }
+
+        /* ===============================================
+           CREAR CLIENTE NUEVO
+           =============================================== */
+
+        else {
+
+
+          const {
+            data: newClient,
+            error: insertError
+          } = await db
+            .from('clientes')
+            .insert(clientData)
+            .select()
+            .single();
+
+
+          if (insertError) {
+
+            console.error(insertError);
+
+            throw insertError;
+
+          }
+
+
+          clientId =
+            newClient.id;
+
+
+          toast(
+            'Registro completado. Ya estás en el CRM de NALYCO.'
+          );
+
+        }
+
+
+        console.log(
+          'Cliente registrado/actualizado:',
+          clientId
+        );
+
+
+        /* ===============================================
+           LIMPIAR FORMULARIO
+           =============================================== */
+
+        event.target.reset();
+
+
+        /* ===============================================
+           MOSTRAR CUENTA
+           =============================================== */
+
+        setTimeout(
+          () => {
+            lookupByEmail(email);
+          },
+          500
+        );
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        toast(
+          error.message ||
+          'No se pudo completar el registro.'
+        );
+
+      }
+
+    }
   );
 
-  if(email){
+}
 
-    await lookupByEmail(email);
+
+/* =========================================================
+   CONSULTAR PUNTOS
+   ========================================================= */
+
+const loginButton = $('#loginBtn');
+
+
+if (loginButton) {
+
+  loginButton.addEventListener(
+    'click',
+    async () => {
+
+
+      const email =
+        prompt(
+          'Escribe el correo registrado en NALYCO:'
+        );
+
+
+      if (email) {
+
+        await lookupByEmail(email);
+
+      }
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   CERRAR SESIÓN
+   ========================================================= */
+
+const logoutButton = $('#logoutBtn');
+
+
+if (logoutButton) {
+
+  logoutButton.addEventListener(
+    'click',
+    async () => {
+
+      await db.auth.signOut();
+
+
+      if ($('#cuenta')) {
+
+        $('#cuenta')
+          .classList
+          .add('hidden');
+
+      }
+
+
+      if ($('#adminModal')) {
+
+        $('#adminModal')
+          .classList
+          .add('hidden');
+
+      }
+
+
+      location.hash = 'inicio';
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   VERIFICAR ADMINISTRADOR
+   ========================================================= */
+
+async function isAdmin() {
+
+  try {
+
+    const user =
+      await getUser();
+
+
+    if (!user) {
+
+      return false;
+
+    }
+
+
+    return (
+      String(user.email || '')
+        .trim()
+        .toLowerCase()
+      ===
+      ADMIN_EMAIL
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+    return false;
 
   }
 
-});
+}
 
 
-/* =========================================
-   CERRAR SESIÓN
-   ========================================= */
+/* =========================================================
+   ABRIR PANEL ADMIN
+   ========================================================= */
 
-$('#logoutBtn').addEventListener('click',async()=>{
+async function openAdmin() {
 
-  await db.auth.signOut();
+  try {
 
-  $('#cuenta').classList.add('hidden');
-
-  $('#adminModal').classList.add('hidden');
-
-  location.hash='inicio';
-
-});
+    const admin =
+      await isAdmin();
 
 
-/* =========================================
-   ADMINISTRADOR
-   ========================================= */
-
-async function openAdmin(){
-
-  try{
-
-    const user=await getUser();
-
-    if(!user){
+    if (!admin) {
 
       toast(
         'Debes iniciar sesión como administrador.'
       );
 
       return;
+
     }
 
-    const email=
-      (user.email||'').trim().toLowerCase();
 
-    console.log(
-      'Correo autenticado:',
-      email
-    );
+    $('#adminModal')
+      ?.classList
+      .remove('hidden');
 
-    console.log(
-      'Correo administrador:',
-      ADMIN_EMAIL
-    );
 
-    if(email!==ADMIN_EMAIL){
+    $('#adminLogin')
+      ?.classList
+      .add('hidden');
 
-      toast('Acceso no autorizado.');
 
-      return;
-    }
+    $('#adminPanel')
+      ?.classList
+      .remove('hidden');
 
-    $('#adminModal').classList.remove('hidden');
-
-    $('#adminLogin').classList.add('hidden');
-
-    $('#adminPanel').classList.remove('hidden');
 
     await renderAdmin();
 
-  }catch(error){
+
+  } catch (error) {
 
     console.error(error);
 
@@ -316,296 +958,621 @@ async function openAdmin(){
 }
 
 
-/* =========================================
+/* =========================================================
    BOTÓN ADMINISTRACIÓN
-   ========================================= */
+   ========================================================= */
 
-$('#adminBtn').addEventListener('click',async()=>{
-
-  try{
-
-    const user=await getUser();
-
-    if(
-      user &&
-      (user.email||'').trim().toLowerCase()===
-      ADMIN_EMAIL
-    ){
-
-      await openAdmin();
-
-      return;
-    }
-
-  }catch(error){
-
-    console.error(error);
-
-  }
-
-  $('#adminModal').classList.remove('hidden');
-
-  $('#adminLogin').classList.remove('hidden');
-
-  $('#adminPanel').classList.add('hidden');
-
-  $('#adminEmail').focus();
-
-});
+const adminButton = $('#adminBtn');
 
 
-/* =========================================
-   LOGIN DEL ADMINISTRADOR
-   ========================================= */
+if (adminButton) {
 
-$('#adminLoginForm').addEventListener(
-  'submit',
-  async e=>{
+  adminButton.addEventListener(
+    'click',
+    async () => {
 
-    e.preventDefault();
 
-    const email=
+      const admin =
+        await isAdmin();
+
+
+      if (admin) {
+
+        await openAdmin();
+
+        return;
+
+      }
+
+
+      $('#adminModal')
+        ?.classList
+        .remove('hidden');
+
+
+      $('#adminLogin')
+        ?.classList
+        .remove('hidden');
+
+
+      $('#adminPanel')
+        ?.classList
+        .add('hidden');
+
+
       $('#adminEmail')
-      .value
-      .trim()
-      .toLowerCase();
+        ?.focus();
 
-    const password=
-      $('#adminPassword').value;
-
-    if(!email){
-
-      toast(
-        'Escribe el correo del administrador.'
-      );
-
-      return;
     }
+  );
 
-    if(!password){
+}
 
-      toast(
-        'Escribe la contraseña del administrador.'
-      );
 
-      return;
-    }
+/* =========================================================
+   LOGIN ADMINISTRADOR
+   ========================================================= */
 
-    if(email!==ADMIN_EMAIL){
+const adminLoginForm =
+  $('#adminLoginForm');
 
-      toast(
-        'Ese correo no tiene permisos de administrador.'
-      );
 
-      return;
-    }
+if (adminLoginForm) {
 
-    try{
+  adminLoginForm.addEventListener(
+    'submit',
+    async event => {
 
-      const {data,error}=
-        await db.auth.signInWithPassword({
+      event.preventDefault();
 
-          email:email,
 
-          password:password
+      const email =
+        String(
+          $('#adminEmail')?.value || ''
+        )
+        .trim()
+        .toLowerCase();
 
-        });
 
-      if(error){
+      const password =
+        $('#adminPassword')?.value || '';
+
+
+      /* ===============================================
+         VALIDAR CORREO
+         =============================================== */
+
+      if (!email) {
+
+        toast(
+          'Escribe el correo del administrador.'
+        );
+
+        return;
+
+      }
+
+
+      if (!password) {
+
+        toast(
+          'Escribe la contraseña del administrador.'
+        );
+
+        return;
+
+      }
+
+
+      if (email !== ADMIN_EMAIL) {
+
+        toast(
+          'Ese correo no tiene permisos de administrador.'
+        );
+
+        return;
+
+      }
+
+
+      try {
+
+
+        const {
+          data,
+          error
+        } =
+          await db.auth.signInWithPassword({
+
+            email,
+
+            password
+
+          });
+
+
+        if (error) {
+
+          console.error(error);
+
+          toast(
+            'No se pudo iniciar sesión: ' +
+            error.message
+          );
+
+          return;
+
+        }
+
+
+        const authenticatedEmail =
+          String(
+            data?.user?.email || ''
+          )
+          .trim()
+          .toLowerCase();
+
+
+        if (
+          authenticatedEmail !==
+          ADMIN_EMAIL
+        ) {
+
+          toast(
+            'La cuenta autenticada no es administradora.'
+          );
+
+
+          await db.auth.signOut();
+
+
+          return;
+
+        }
+
+
+        toast(
+          'Administrador conectado correctamente.'
+        );
+
+
+        await openAdmin();
+
+
+      } catch (error) {
 
         console.error(error);
 
         toast(
-          'No se pudo iniciar sesión: '+
-          error.message
+          'Ocurrió un error al iniciar sesión.'
         );
 
-        return;
       }
-
-      const authenticatedEmail=
-        (data?.user?.email||'')
-        .trim()
-        .toLowerCase();
-
-      if(authenticatedEmail!==ADMIN_EMAIL){
-
-        toast(
-          'La cuenta autenticada no es administradora.'
-        );
-
-        await db.auth.signOut();
-
-        return;
-      }
-
-      toast(
-        'Administrador conectado correctamente.'
-      );
-
-      await openAdmin();
-
-    }catch(error){
-
-      console.error(error);
-
-      toast(
-        'Ocurrió un error al iniciar sesión.'
-      );
 
     }
+  );
 
-  }
-);
-
-
-/* =========================================
-   CERRAR PANEL ADMIN
-   ========================================= */
-
-$('#closeAdmin').addEventListener('click',()=>{
-
-  $('#adminModal').classList.add('hidden');
-
-});
+}
 
 
-/* =========================================
-   PANEL ADMINISTRADOR
-   ========================================= */
+/* =========================================================
+   CERRAR MODAL ADMIN
+   ========================================================= */
 
-async function renderAdmin(){
+const closeAdmin =
+  $('#closeAdmin');
 
-  try{
 
-    const user=await getUser();
+if (closeAdmin) {
 
-    if(
-      !user ||
-      (user.email||'').trim().toLowerCase()!==ADMIN_EMAIL
-    ){
+  closeAdmin.addEventListener(
+    'click',
+    () => {
 
-      toast('Acceso no autorizado.');
+      $('#adminModal')
+        ?.classList
+        .add('hidden');
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   CARGAR PANEL CRM
+   ========================================================= */
+
+async function renderAdmin() {
+
+  try {
+
+
+    const admin =
+      await isAdmin();
+
+
+    if (!admin) {
+
+      toast(
+        'Acceso no autorizado.'
+      );
 
       return;
+
     }
 
+
+    /* ===============================================
+       CLIENTES
+       =============================================== */
+
     const {
-      data:clients,
-      error
-    }=await db
+      data: clients,
+      error: clientError
+    } = await db
       .from('clientes')
       .select('*')
       .order('nombre');
 
-    if(error)throw error;
+
+    if (clientError) {
+
+      throw clientError;
+
+    }
+
+
+    /* ===============================================
+       COMPRAS
+       =============================================== */
 
     const {
-      data:purchases,
-      error:pe
-    }=await db
+      data: purchases,
+      error: purchaseError
+    } = await db
       .from('compras')
-      .select('cliente_id');
-
-    if(pe)throw pe;
-
-    const counts={};
-
-    (purchases||[]).forEach(p=>{
-
-      counts[p.cliente_id]=
-        (counts[p.cliente_id]||0)+1;
-
-    });
-
-    const total=
-      clients?.length||0;
-
-    const points=
-      (clients||[]).reduce(
-        (a,c)=>a+(c.puntos||0),
-        0
+      .select('*')
+      .order(
+        'fecha_compra',
+        {
+          ascending: false
+        }
       );
 
-    const sales=
-      purchases?.length||0;
 
-    $('#adminStats').innerHTML=`
+    if (purchaseError) {
 
-      <div>
-        <span>Clientes</span>
-        <strong>${total}</strong>
-      </div>
+      throw purchaseError;
 
-      <div>
-        <span>Puntos emitidos</span>
-        <strong>${points}</strong>
-      </div>
+    }
 
-      <div>
-        <span>Compras registradas</span>
-        <strong>${sales}</strong>
-      </div>
 
-    `;
+    /* ===============================================
+       CONTADORES
+       =============================================== */
 
-    $('#clientsTable').innerHTML=
+    const purchaseCount = {};
 
-      (clients||[]).map(c=>`
 
-        <tr>
+    const purchaseValue = {};
 
-          <td>
-            <b>${c.nombre}</b>
-            <br>
-            <small>${c.correo}</small>
-          </td>
 
-          <td>
-            ${c.ciudad||''}
-          </td>
+    (purchases || [])
+      .forEach(purchase => {
 
-          <td>
-            ${counts[c.id]||0}
-          </td>
 
-          <td>
-            ${c.puntos||0}
-          </td>
+        const id =
+          purchase.cliente_id;
 
-          <td>
-            ${c.nivel||level(c.puntos||0)}
-          </td>
 
-          <td>
+        purchaseCount[id] =
+          (purchaseCount[id] || 0) + 1;
 
-            <button
-              class="ghost"
-              onclick="addPoints(${c.id})"
-            >
-              +100 pts
-            </button>
 
-            <button
-              class="ghost"
-              onclick="deleteClient(${c.id})"
-            >
-              Eliminar
-            </button>
+        purchaseValue[id] =
+          (purchaseValue[id] || 0) +
+          Number(
+            purchase.valor || 0
+          );
 
-          </td>
+      });
 
-        </tr>
 
-      `).join('')
+    /* ===============================================
+       ESTADÍSTICAS GENERALES
+       =============================================== */
 
-      ||
+    const totalClients =
+      clients?.length || 0;
 
-      '<tr><td colspan="6">No hay clientes registrados.</td></tr>';
 
-  }catch(e){
+    const totalPoints =
+      (clients || [])
+        .reduce(
+          (total, client) =>
+            total +
+            Number(client.puntos || 0),
+          0
+        );
 
-    console.error(e);
+
+    const totalPurchases =
+      purchases?.length || 0;
+
+
+    const totalSales =
+      (purchases || [])
+        .reduce(
+          (total, purchase) =>
+            total +
+            Number(purchase.valor || 0),
+          0
+        );
+
+
+    const averageSatisfaction =
+      (clients || [])
+        .filter(
+          client =>
+            client.satisfaccion !== null &&
+            client.satisfaccion !== undefined
+        )
+        .reduce(
+          (total, client) =>
+            total +
+            Number(client.satisfaccion || 0),
+          0
+        );
+
+
+    const satisfactionClients =
+      (clients || [])
+        .filter(
+          client =>
+            client.satisfaccion !== null &&
+            client.satisfaccion !== undefined
+        )
+        .length;
+
+
+    const satisfactionAverage =
+      satisfactionClients > 0
+        ? (
+            averageSatisfaction /
+            satisfactionClients
+          ).toFixed(1)
+        : '—';
+
+
+    /* ===============================================
+       MOSTRAR ESTADÍSTICAS
+       =============================================== */
+
+    if ($('#adminStats')) {
+
+      $('#adminStats').innerHTML = `
+
+        <div>
+
+          <span>
+            Clientes
+          </span>
+
+          <strong>
+            ${totalClients}
+          </strong>
+
+        </div>
+
+
+        <div>
+
+          <span>
+            Puntos emitidos
+          </span>
+
+          <strong>
+            ${totalPoints}
+          </strong>
+
+        </div>
+
+
+        <div>
+
+          <span>
+            Compras
+          </span>
+
+          <strong>
+            ${totalPurchases}
+          </strong>
+
+        </div>
+
+
+        <div>
+
+          <span>
+            Ventas
+          </span>
+
+          <strong>
+            $${totalSales.toLocaleString('es-CO')}
+          </strong>
+
+        </div>
+
+
+        <div>
+
+          <span>
+            Satisfacción
+          </span>
+
+          <strong>
+            ${satisfactionAverage}
+          </strong>
+
+        </div>
+
+      `;
+
+    }
+
+
+    /* ===============================================
+       TABLA CRM
+       =============================================== */
+
+    if ($('#clientsTable')) {
+
+
+      $('#clientsTable').innerHTML =
+
+        (clients || [])
+          .map(client => `
+
+            <tr>
+
+              <td>
+
+                ${escapeHTML(
+                  client.identificacion || '—'
+                )}
+
+              </td>
+
+
+              <td>
+
+                <b>
+                  ${escapeHTML(
+                    client.nombre || ''
+                  )}
+                </b>
+
+                <br>
+
+                <small>
+                  ${escapeHTML(
+                    client.correo || ''
+                  )}
+                </small>
+
+              </td>
+
+
+              <td>
+
+                ${escapeHTML(
+                  client.telefono || '—'
+                )}
+
+              </td>
+
+
+              <td>
+
+                ${escapeHTML(
+                  client.correo || '—'
+                )}
+
+              </td>
+
+
+              <td>
+
+                ${escapeHTML(
+                  client.ciudad || '—'
+                )}
+
+              </td>
+
+
+              <td>
+
+                ${purchaseCount[client.id] || 0}
+
+              </td>
+
+
+              <td>
+
+                ${Number(
+                  client.puntos || 0
+                )}
+
+              </td>
+
+
+              <td>
+
+                ${escapeHTML(
+                  client.nivel ||
+                  level(client.puntos || 0)
+                )}
+
+              </td>
+
+
+              <td>
+
+                ${escapeHTML(
+                  client.tipo_cliente ||
+                  'Nuevo'
+                )}
+
+              </td>
+
+
+              <td>
+
+                <button
+                  class="ghost"
+                  onclick="addPoints(${client.id})"
+                >
+                  +100 pts
+                </button>
+
+
+                <button
+                  class="ghost"
+                  onclick="deleteClient(${client.id})"
+                >
+                  Eliminar
+                </button>
+
+              </td>
+
+            </tr>
+
+          `)
+          .join('')
+
+        ||
+
+        `
+
+          <tr>
+
+            <td colspan="10">
+
+              No hay clientes registrados.
+
+            </td>
+
+          </tr>
+
+        `;
+
+    }
+
+
+  } catch (error) {
+
+    console.error(error);
 
     toast(
       'No se pudo cargar el panel. Revisa las políticas de Supabase.'
@@ -616,82 +1583,153 @@ async function renderAdmin(){
 }
 
 
-/* =========================================
-   AGREGAR PUNTOS
-   ========================================= */
+/* =========================================================
+   AGREGAR 100 PUNTOS
+   ========================================================= */
 
-window.addPoints=async id=>{
+window.addPoints = async function(id) {
 
-  try{
+  try {
+
+
+    const admin =
+      await isAdmin();
+
+
+    if (!admin) {
+
+      toast(
+        'No tienes permisos de administrador.'
+      );
+
+      return;
+
+    }
+
+
+    /* ===============================================
+       OBTENER CLIENTE
+       =============================================== */
 
     const {
-      data:c,
+      data: client,
       error
-    }=await db
+    } = await db
       .from('clientes')
       .select('*')
-      .eq('id',id)
+      .eq('id', id)
       .single();
 
-    if(error)throw error;
 
-    const newPoints=
-      (c.puntos||0)+100;
+    if (error) {
 
-    const newLevel=
+      throw error;
+
+    }
+
+
+    const currentPoints =
+      Number(client.puntos || 0);
+
+
+    const newPoints =
+      currentPoints + 100;
+
+
+    const newLevel =
       level(newPoints);
 
+
+    /* ===============================================
+       ACTUALIZAR CLIENTE
+       =============================================== */
+
     const {
-      error:ue
-    }=await db
+      error: updateError
+    } = await db
       .from('clientes')
       .update({
 
-        puntos:newPoints,
+        puntos: newPoints,
 
-        nivel:newLevel
+        nivel: newLevel,
+
+        tipo_cliente:
+          currentPoints > 0
+            ? 'Recurrente'
+            : (
+                client.tipo_cliente ||
+                'Nuevo'
+              )
 
       })
-      .eq('id',id);
+      .eq('id', id);
 
-    if(ue)throw ue;
+
+    if (updateError) {
+
+      throw updateError;
+
+    }
+
+
+    /* ===============================================
+       REGISTRAR MOVIMIENTO EN COMPRAS
+       =============================================== */
 
     const {
-      error:ie
-    }=await db
+      error: purchaseError
+    } = await db
       .from('compras')
       .insert({
 
-        cliente_id:id,
+        cliente_id: id,
 
         producto:
           'Ajuste de fidelización',
 
-        cantidad:1,
+        cantidad: 1,
 
-        valor:0,
+        valor: 0,
 
         fecha_compra:
           new Date()
-          .toISOString()
-          .slice(0,10)
+            .toISOString()
+            .slice(0, 10),
+
+        estado_venta:
+          'Completada',
+
+        responsable:
+          ADMIN_EMAIL,
+
+        canal_compra:
+          'Página web'
 
       });
 
-    if(ie)throw ie;
+
+    if (purchaseError) {
+
+      throw purchaseError;
+
+    }
+
 
     await renderAdmin();
 
+
     toast(
-      `Se agregaron 100 puntos a ${c.nombre}.`
+      `Se agregaron 100 puntos a ${client.nombre}.`
     );
 
-  }catch(e){
 
-    console.error(e);
+  } catch (error) {
+
+    console.error(error);
 
     toast(
-      'No se pudieron agregar puntos.'
+      'No se pudieron agregar los puntos.'
     );
 
   }
@@ -699,38 +1737,90 @@ window.addPoints=async id=>{
 };
 
 
-/* =========================================
+/* =========================================================
    ELIMINAR CLIENTE
-   ========================================= */
+   ========================================================= */
 
-window.deleteClient=async id=>{
+window.deleteClient = async function(id) {
 
-  if(
+  if (
     !confirm(
-      '¿Eliminar este cliente y sus compras?'
+      '¿Eliminar este cliente y todas sus compras?'
     )
-  )return;
+  ) {
 
-  try{
+    return;
+
+  }
+
+
+  try {
+
+
+    const admin =
+      await isAdmin();
+
+
+    if (!admin) {
+
+      toast(
+        'No tienes permisos de administrador.'
+      );
+
+      return;
+
+    }
+
+
+    /* ===============================================
+       ELIMINAR COMPRAS DEL CLIENTE
+       =============================================== */
 
     const {
-      error
-    }=await db
+      error: purchaseError
+    } = await db
+      .from('compras')
+      .delete()
+      .eq('cliente_id', id);
+
+
+    if (purchaseError) {
+
+      throw purchaseError;
+
+    }
+
+
+    /* ===============================================
+       ELIMINAR CLIENTE
+       =============================================== */
+
+    const {
+      error: clientError
+    } = await db
       .from('clientes')
       .delete()
-      .eq('id',id);
+      .eq('id', id);
 
-    if(error)throw error;
+
+    if (clientError) {
+
+      throw clientError;
+
+    }
+
 
     await renderAdmin();
 
+
     toast(
-      'Cliente eliminado.'
+      'Cliente eliminado correctamente.'
     );
 
-  }catch(e){
 
-    console.error(e);
+  } catch (error) {
+
+    console.error(error);
 
     toast(
       'No se pudo eliminar el cliente.'
@@ -741,132 +1831,426 @@ window.deleteClient=async id=>{
 };
 
 
-/* =========================================
-   EXPORTAR CLIENTES
-   ========================================= */
+/* =========================================================
+   EXPORTAR CRM
+   ========================================================= */
 
-$('#exportBtn').addEventListener(
-  'click',
-  async()=>{
+const exportButton =
+  $('#exportBtn');
 
-    try{
 
-      const {
-        data,
-        error
-      }=await db
-        .from('clientes')
-        .select('*')
-        .order('nombre');
+if (exportButton) {
 
-      if(error)throw error;
+  exportButton.addEventListener(
+    'click',
+    async () => {
 
-      const rows=[
 
-        [
-          'ID',
-          'Nombre',
-          'Teléfono',
-          'Correo',
-          'Ciudad',
-          'Dirección',
-          'Fecha nacimiento',
-          'Puntos',
-          'Nivel'
-        ],
+      try {
 
-        ...(data||[]).map(c=>[
 
-          c.id,
+        const admin =
+          await isAdmin();
 
-          c.nombre,
 
-          c.telefono,
+        if (!admin) {
 
-          c.correo,
+          toast(
+            'No tienes permisos para exportar el CRM.'
+          );
 
-          c.ciudad,
+          return;
 
-          c.direccion,
+        }
 
-          c.fecha_nacimiento,
 
-          c.puntos,
+        /* =============================================
+           CLIENTES
+           ============================================= */
 
-          c.nivel
+        const {
+          data: clients,
+          error: clientError
+        } = await db
+          .from('clientes')
+          .select('*')
+          .order('nombre');
 
-        ])
 
-      ];
+        if (clientError) {
 
-      const csv=
-        rows
-        .map(r=>
-          r.map(v=>
-            `"${String(v??'').replaceAll('"','""')}"`
-          ).join(',')
-        )
-        .join('\n');
+          throw clientError;
 
-      const a=
-        document.createElement('a');
+        }
 
-      a.href=
-        URL.createObjectURL(
+
+        /* =============================================
+           COMPRAS
+           ============================================= */
+
+        const {
+          data: purchases,
+          error: purchaseError
+        } = await db
+          .from('compras')
+          .select('*')
+          .order(
+            'fecha_compra',
+            {
+              ascending: false
+            }
+          );
+
+
+        if (purchaseError) {
+
+          throw purchaseError;
+
+        }
+
+
+        /* =============================================
+           AGRUPAR COMPRAS
+           ============================================= */
+
+        const purchasesByClient = {};
+
+
+        (purchases || [])
+          .forEach(purchase => {
+
+
+            const clientId =
+              purchase.cliente_id;
+
+
+            if (
+              !purchasesByClient[clientId]
+            ) {
+
+              purchasesByClient[clientId] = [];
+
+            }
+
+
+            purchasesByClient[clientId]
+              .push(purchase);
+
+          });
+
+
+        /* =============================================
+           ENCABEZADOS CRM
+           ============================================= */
+
+        const rows = [
+
+          [
+
+            'ID',
+
+            'Identificación',
+
+            'Nombre y apellidos',
+
+            'Teléfono',
+
+            'Correo',
+
+            'Ciudad',
+
+            'Dirección',
+
+            'Fecha de nacimiento',
+
+            'Estado de venta',
+
+            'Fecha de compra',
+
+            'Satisfacción',
+
+            'Calificación del servicio',
+
+            'Cantidad',
+
+            'Tipo de cliente',
+
+            'Valor potencial de venta',
+
+            'Responsable',
+
+            'Canal de compra',
+
+            'Puntos',
+
+            'Nivel'
+
+          ]
+
+        ];
+
+
+        /* =============================================
+           CREAR FILAS
+           ============================================= */
+
+        (clients || [])
+          .forEach(client => {
+
+
+            const clientPurchases =
+              purchasesByClient[client.id] ||
+              [];
+
+
+            /* =========================================
+               CLIENTE SIN COMPRAS
+               ========================================= */
+
+            if (
+              clientPurchases.length === 0
+            ) {
+
+
+              rows.push([
+
+                client.id,
+
+                client.identificacion || '',
+
+                client.nombre || '',
+
+                client.telefono || '',
+
+                client.correo || '',
+
+                client.ciudad || '',
+
+                client.direccion || '',
+
+                client.fecha_nacimiento || '',
+
+                '',
+
+                '',
+
+                client.satisfaccion ?? '',
+
+                client.calificacion_servicio ?? '',
+
+                '',
+
+                client.tipo_cliente || 'Nuevo',
+
+                client.valor_potencial_venta || 0,
+
+                '',
+
+                '',
+
+                client.puntos || 0,
+
+                client.nivel ||
+                  level(client.puntos || 0)
+
+              ]);
+
+            }
+
+
+            /* =========================================
+               CLIENTE CON COMPRAS
+               ========================================= */
+
+            else {
+
+
+              clientPurchases
+                .forEach(purchase => {
+
+
+                  rows.push([
+
+                    client.id,
+
+                    client.identificacion || '',
+
+                    client.nombre || '',
+
+                    client.telefono || '',
+
+                    client.correo || '',
+
+                    client.ciudad || '',
+
+                    client.direccion || '',
+
+                    client.fecha_nacimiento || '',
+
+                    purchase.estado_venta || '',
+
+                    purchase.fecha_compra || '',
+
+                    client.satisfaccion ?? '',
+
+                    client.calificacion_servicio ?? '',
+
+                    purchase.cantidad || '',
+
+                    client.tipo_cliente || 'Nuevo',
+
+                    client.valor_potencial_venta || 0,
+
+                    purchase.responsable || '',
+
+                    purchase.canal_compra || '',
+
+                    client.puntos || 0,
+
+                    client.nivel ||
+                      level(client.puntos || 0)
+
+                  ]);
+
+                });
+
+            }
+
+          });
+
+
+        /* =============================================
+           CREAR CSV
+           ============================================= */
+
+        const csv =
+          rows
+            .map(row =>
+
+              row
+                .map(value =>
+                  `"${String(
+                    value ?? ''
+                  ).replaceAll(
+                    '"',
+                    '""'
+                  )}"`
+                )
+                .join(',')
+
+            )
+            .join('\n');
+
+
+        /* =============================================
+           BOM PARA EXCEL
+           ============================================= */
+
+        const blob =
           new Blob(
-            [csv],
-            {type:'text/csv'}
-          )
+            [
+              '\uFEFF',
+              csv
+            ],
+            {
+              type:
+                'text/csv;charset=utf-8;'
+            }
+          );
+
+
+        const url =
+          URL.createObjectURL(blob);
+
+
+        const link =
+          document.createElement('a');
+
+
+        link.href = url;
+
+
+        link.download =
+          'NALYCO_CRM.csv';
+
+
+        document.body.appendChild(link);
+
+
+        link.click();
+
+
+        link.remove();
+
+
+        URL.revokeObjectURL(url);
+
+
+        toast(
+          'CRM exportado correctamente.'
         );
 
-      a.download=
-        'nalyco_clientes.csv';
 
-      a.click();
+      } catch (error) {
 
-    }catch(e){
+        console.error(error);
 
-      console.error(e);
+        toast(
+          'No se pudo exportar el CRM.'
+        );
 
-      toast(
-        'No se pudo exportar.'
-      );
+      }
 
     }
+  );
 
-  }
-);
+}
 
 
-/* =========================================
-   INICIO
-   ========================================= */
+/* =========================================================
+   INICIO DE LA APLICACIÓN
+   ========================================================= */
 
 renderBenefits();
 
-(async()=>{
 
-  try{
+/* =========================================================
+   COMPROBAR SESIÓN ADMINISTRADOR
+   ========================================================= */
+
+(async function init() {
+
+  try {
+
 
     const {
-      data:{session}
-    }=await db.auth.getSession();
+      data: { session }
+    } =
+      await db.auth.getSession();
 
-    if(
+
+    if (
       session &&
-      (session.user.email||'')
+      String(
+        session.user?.email || ''
+      )
       .trim()
-      .toLowerCase()===
+      .toLowerCase()
+      ===
       ADMIN_EMAIL
-    ){
+    ) {
 
       await openAdmin();
 
     }
 
-  }catch(error){
 
-    console.error(error);
+  } catch (error) {
+
+    console.error(
+      'Error al iniciar aplicación:',
+      error
+    );
 
   }
 
